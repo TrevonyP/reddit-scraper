@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "csv-writer": "^1.6.0",
+    "dotenv": "^8.2.0",
+    "fs": "^0.0.1-security",
+    "jsonexport": "^3.2.0",
+    "log-timestamp": "^0.3.0",
+    "snoowrap": "^1.22.0",
+    "vader-sentiment": "^1.1.3"
+  }
+}
