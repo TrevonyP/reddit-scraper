@@ -21,20 +21,25 @@ const csvWriter = createCsvWriter({
 
 const jsonexport = require('jsonexport');
 
-var subreddit_list
+var subreddit_list, csv_file
 
-if (process.env.USE_CONTROL) {
+/*if (process.env.USE_CONTROL) {
 	subreddit_list = subreddits_control.array
+	csv_file = "results_control.csv"
 } else {
 	subreddit_list = subreddits.array
-}
+	csv_file = "results.csv"
+}*/
+
+subreddit_list = subreddits.array
+csv_file = "results.csv"
 
 // var subreddit_list = subreddits.array;
 
 const CLIENT_ID = process.env.R_CLIENTID;
 const CLIENT_SECRET = process.env.R_CLIENTSECRET;
 const REFRESH_TOKEN = process.env.R_REFRESHTOKEN;
-const GET_POST_LIMIT = 2;
+const GET_POST_LIMIT = 10;
 const GET_COMMENTS_LIMIT = 20;
 
 const r = new snoowrap({
@@ -43,6 +48,10 @@ const r = new snoowrap({
     clientSecret: CLIENT_SECRET,
     refreshToken: REFRESH_TOKEN,
 });
+
+function getRandomInt(max) {
+	return Math.floor(Math.random() * Math.floor(max));
+}
 
 async function scrapeSubreddit() {
 
@@ -57,6 +66,7 @@ async function scrapeSubreddit() {
 
 	let scraped_posts = [];
   	let data = [];
+  	let temp_index;
 
   	for (var i = 0; i < subreddit_list.length; i++) {
   		for (var j = 0; j < GET_POST_LIMIT; j++) {
@@ -76,22 +86,30 @@ async function scrapeSubreddit() {
 
 	  		} else {
 
+	  			let scraped_comments = [];
+
 	  			// Now, we should grab all of the comments under that post
 		  		console.log(`Found random post id: ${post.name}`)
 
 		  		scraped_posts.push(post.name)
+		  		
+		  		for (k = 0; k < post.num_comments; k++) {
 
-		  		for (k = 0; post.num_comments / 2; k++) {
+		  			temp_index = getRandomInt(post.num_comments)
 
-		  			if (!post.comments[k]) break;
+		  			if (scraped_comments.includes(temp_index)) continue;
+
+		  			scraped_comments.push(temp_index)
+
+		  			if (!post.comments[temp_index]) break;
 		  			// We take a maximum of 20 comments per post
 		  			else if (k == GET_COMMENTS_LIMIT) break;
 		  			// It avoids comments from Original Poster (OP)
-		  			else if (post.comments[k].is_submitter) continue;
+		  			else if (post.comments[temp_index].is_submitter) continue;
 		  			// It avoids comments from bots
-		  			else if (post.comments[k].author.name === 'AutoModerator') continue;
+		  			else if (post.comments[temp_index].author.name === 'AutoModerator') continue;
 
-		  			let comment = post.comments[k]
+		  			let comment = post.comments[temp_index]
 
 		  			let sentiment_scores = vader.SentimentIntensityAnalyzer.polarity_scores(comment.body)
 		  			let comment_text = comment.body.replace(/[\n\r]+/g, ' ');
@@ -115,6 +133,11 @@ async function scrapeSubreddit() {
 
 			  		data.push(results)
 		  		}
+		  		
+
+
+
+
 		  		/*
 		  		let results = {
 		  			POST_ID: post.name,
@@ -168,7 +191,7 @@ async function scrapeSubreddit() {
 
 	try {
     	const csv = await jsonexport(data, {rowDelimiter: '|||'});
-    	fs.writeFile('test_results.csv', csv, err => {
+    	fs.writeFile(csv_file, csv, err => {
 			if (err) {
 		    	console.error(err)
 		    	return;

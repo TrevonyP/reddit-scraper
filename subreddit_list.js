@@ -10,7 +10,6 @@ exports.array = [
 	"AlmostHomeless",
 	"Homeless",
 	"MakeNewFriendsHere",
-	"INeedAFavor",
 	"MakeMeFeelBetter",
 	"Assistance",
 	"ADHD",
