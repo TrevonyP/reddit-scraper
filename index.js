@@ -149,10 +149,33 @@ async function karma_to_cakeday_ratio(username) {
 */
 }
 
+function username_breakdown(username) {
+	var contains_sex = false, contains_gender = false;
+
+	let s = username.toLowerCase()
+
+	if (s.includes('boy') || s.includes('girl') || s.includes('man') || s.includes('woman') ||
+	s.includes('men') || s.includes('women')) {
+		contains_sex = true;
+	}
+	if (s.includes('guy') || s.includes('male') || s.includes('female') || s.includes('gay') || s.includes('lesbian') || 
+	s.includes('transs') || s.includes('transg') || s.includes('gender') || s.includes('queer') ||
+	s.includes('sexual') || s.includes('binary') || s.includes('cis')) {
+		contains_gender = true;
+	}
+
+	let object = {
+		contains_sex: contains_sex,
+		contains_gender: contains_gender
+	}
+
+	return object;
+}
+
 async function anon_score(username) {
 
 	// Anonymous scores start at 10
-	let score = 10, email_is_verified = false, karma_ratio;
+	let score = 10, email_is_verified = false, karma_ratio, username_info;
 
 	if (username === "[deleted]") {
 		email_is_verified = false;
@@ -170,17 +193,25 @@ async function anon_score(username) {
 
 		karma_ratio = await karma_to_cakeday_ratio(username)
 
-		if (karma_ratio >= 10) score -= 4
-		else if (karma_ratio >= 8) score -= 3.75
-		else if (karma_ratio >= 6) score -= 3.50
-		else if (karma_ratio >= 4) score -= 3.00
-		else if (karma_ratio >= 2) score -= 2.50
-		else if (karma_ratio >= 1.50) score -= 2.00
-		else if (karma_ratio >= 1.00) score -= 1.50
-		else if (karma_ratio >= 0.66) score -= 1.00
-		else if (karma_ratio >= 0.33) score -= 0.50
-		else if (karma_ratio > 0) score -= 0.25
+		if (karma_ratio >= 10) score -= 3
+		else if (karma_ratio >= 8) score -= 2.75
+		else if (karma_ratio >= 6) score -= 2.50
+		else if (karma_ratio >= 4) score -= 2.25
+		else if (karma_ratio >= 2) score -= 2.00
+		else if (karma_ratio >= 1.50) score -= 1.50
+		else if (karma_ratio >= 1.00) score -= 1.00
+		else if (karma_ratio >= 0.66) score -= 0.50
+		else if (karma_ratio >= 0.33) score -= 0.25
+		else if (karma_ratio > 0) score -= 0.10
 
+		username_info = username_breakdown(username)
+
+		if (username_info.contains_sex) {
+			score -= 3
+		}
+		if (username_info.contains_gender) {
+			score -= 3
+		}
 		/*
 		comment_to_cakeday_ratio(username).then(comment_ratio => {
 
@@ -433,3 +464,5 @@ async function scrapeSubreddit() {
 };
 
 scrapeSubreddit()
+
+//username_breakdown('Super_cisgender')
