@@ -5,6 +5,9 @@ const subreddits_control = require('./subreddit_list_control.js');
 const vader = require('vader-sentiment');
 const snoowrap = require('snoowrap');
 const fs = require('fs')
+const moment = require('moment')
+
+
 /*
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const csvWriter = createCsvWriter({
@@ -39,7 +42,7 @@ csv_file = "results.csv"
 const CLIENT_ID = process.env.R_CLIENTID;
 const CLIENT_SECRET = process.env.R_CLIENTSECRET;
 const REFRESH_TOKEN = process.env.R_REFRESHTOKEN;
-const GET_POST_LIMIT = 10;
+const GET_POST_LIMIT = 2;
 const GET_COMMENTS_LIMIT = 20;
 
 const r = new snoowrap({
@@ -52,6 +55,213 @@ const r = new snoowrap({
 function getRandomInt(max) {
 	return Math.floor(Math.random() * Math.floor(max));
 }
+
+function weighted_score(positive_score, upvotes, post_impressions) {
+	let new_score, upvote_ratio;
+
+	upvote_ratio = upvotes / post_impressions;
+	new_score = positive_score * 10;
+
+	if (upvote_ratio < 0.20) {
+		new_score = new_score + 1.5;
+	} else if (upvote_ratio < 0.25) {
+		new_score = new_score + 2;
+	} else if (upvote_ratio < 0.30) {
+		new_score = new_score + 2.5;
+	} else if (upvote_ratio < 0.35) {
+		new_score = new_score + 3;
+	} else if (upvote_ratio < 0.45) {
+		new_score = new_score + 3.5;
+	} else if (upvote_ratio < 0.55) {
+		new_score = new_score + 4;
+	} else if (upvote_ratio < 0.65) {
+		new_score = new_score + 4.5;
+	} else {
+		new_score = new_score + 5;
+	}
+
+	// Maximum weighted score is 10
+	if (new_score > 10) new_score = 10;
+
+	return new_score;
+}
+
+async function user_email_verified(username) {
+
+	var email_is_verified = false;
+
+	var trophies = await r.getUser(username).getTrophies()
+
+	for (var i = 0; i < trophies.trophies.length; i++) {
+	//	console.log(`Trophies: ${JSON.stringify(trophies.trophies[i])}`)
+		if (trophies.trophies[i].award_id === 'o') {
+				email_is_verified = true;
+				break;
+		}
+	}
+	return email_is_verified;
+
+	/*
+	r.getUser(username).getTrophies().then(function (trophies) {
+		for (var i = 0; i < trophies.trophies.length; i++) {
+			if (trophies.trophies[i].award_id === 'o') {
+				email_is_verified = true;
+				break;
+			}
+		}
+		return email_is_verified;
+	})
+	*/
+
+}
+
+async function karma_to_cakeday_ratio(username) {
+
+	var ratio, now, created_moment, created_days_ago, karma;
+
+	var user_created_utc = await r.getUser(username).fetch().created_utc
+
+	now = moment()
+	created_moment = moment.unix(user_created_utc)
+	// Converts the utc created time to days ago that account was created
+	created_days_ago = now.diff(created_moment, "days")
+
+//	console.log(`DAYS: ${user_created_utc}`)
+
+	karma = await r.getUser(username).comment_karma
+
+	if (karma < 0) {
+		return 0;
+	} else {
+		return karma / created_days_ago;
+	}
+
+//	var user_posts = await r.getUser(username).getOverview()
+
+//	console.log(`POSTS LENGTH: ${user_posts.length}`)
+	// Reddit limits to 25 posts
+//	console.log(`RATIO LENGTH: ${user_posts.length / created_days_ago}`)
+/*	if (user_posts.length >= 25) {
+		return 2;
+	} else {
+		return user_posts.length / created_days_ago;
+	}
+*/
+}
+
+async function anon_score(username) {
+
+	// Anonymous scores start at 10
+	let score = 10, email_is_verified = false, karma_ratio;
+
+	if (username === "[deleted]") {
+		email_is_verified = false;
+//		return score;
+	} else if (user_email_verified(username)) {
+		email_is_verified = true;
+		score -= 1;
+//		return score - 2;
+	}
+
+	// Can't use comment to cake day ratio becuase API limits comments to 25 posts
+	
+	if (username !== "[deleted]") {
+		// Karma to Cake day ratio
+
+		karma_ratio = await karma_to_cakeday_ratio(username)
+
+		if (karma_ratio >= 10) score -= 4
+		else if (karma_ratio >= 8) score -= 3.75
+		else if (karma_ratio >= 6) score -= 3.50
+		else if (karma_ratio >= 4) score -= 3.00
+		else if (karma_ratio >= 2) score -= 2.50
+		else if (karma_ratio >= 1.50) score -= 2.00
+		else if (karma_ratio >= 1.00) score -= 1.50
+		else if (karma_ratio >= 0.66) score -= 1.00
+		else if (karma_ratio >= 0.33) score -= 0.50
+		else if (karma_ratio > 0) score -= 0.25
+
+		/*
+		comment_to_cakeday_ratio(username).then(comment_ratio => {
+
+			console.log(`COMMENT RATIO: ${comment_ratio}`)
+			if (comment_ratio >= 2) score -= 3
+			else if (comment_ratio >= 1.75) score -= 2.75
+			else if (comment_ratio >= 1.50) score -= 2.50
+			else if (comment_ratio >= 1.25) score -= 2.25
+			else if (comment_ratio >= 1.00) score -= 2.00
+			else if (comment_ratio >= 0.50) score -= 1.50
+			else if (comment_ratio >= 0.25) score -= 1.00
+			else if (comment_ratio > 0) score -= 0.50
+		}). catch(error => {
+			console.log(`Error in computing comment_ratio`)
+		})
+		*/
+	//	let comment_ratio_2 = comment_to_cakeday_ratio(username);
+	//	console.log(`COMMENT RATIO: ${ratio}`)
+		/*
+		if (comment_ratio >= 2) score -= 3
+		else if (comment_ratio >= 1.75) score -= 2.75
+		else if (comment_ratio >= 1.50) score -= 2.50
+		else if (comment_ratio >= 1.25) score -= 2.25
+		else if (comment_ratio >= 1.00) score -= 2.00
+		else if (comment_ratio >= 0.50) score -= 1.50
+		else if (comment_ratio >= 0.25) score -= 1.00
+		else if (comment_ratio > 0) score -= 0.50
+		*/
+	}
+
+		//return 1;
+
+		/*
+		var email_is_verified, retrieved;
+
+		try {
+			email_is_verified = await new Promise((resolve, reject) => {
+				r.getUser(username).getTrophies().then(function (trophies) {
+					for (var i = 0; i < trophies.trophies.length; i++) {
+						if (trophies.trophies[i].award_id === 'o') {
+							retrieved = true;
+							resolve(true);
+							break;
+						}
+					}
+					if (retrieved === false) reject();
+				})
+			})
+		} catch (e) {
+			email_is_verified = false;
+		}
+		*/
+	//	----
+		/*
+		r.getUser(username).getTrophies().then(function (trophies) {
+			for (var i = 0; i < trophies.trophies.length; i++) {
+				if (trophies.trophies[i].award_id === 'o') {
+					email_is_verified = true;
+					break;
+				}
+			}
+			console.log(`Email_veri 11: ${email_is_verified}`)
+		})
+		*/
+		//Temp
+	//	console.log(`Email_veri 22: ${email_is_verified}`)
+		
+	//	if (email_is_verified) return score - 2;
+	//	else return 1;
+
+
+	if (score < 0) score = 0;
+
+	let object = {
+		email_is_verified: email_is_verified,
+		score: score
+	}
+	return object;
+
+}
+
 
 async function scrapeSubreddit() {
 
@@ -114,21 +324,30 @@ async function scrapeSubreddit() {
 		  			let sentiment_scores = vader.SentimentIntensityAnalyzer.polarity_scores(comment.body)
 		  			let comment_text = comment.body.replace(/[\n\r]+/g, ' ');
 
+		  		//	console.log(`User trophies: ${r.getUser(comment.author.name).getTrophies().then(console.log)}`)
+		  		//	return
+
+		  			user_anon_score_obj = await anon_score(comment.author.name)
+
 		  			var results = {
 			  			POST_ID: post.name,
 			  			POST_URL: post.url,
+			  			POST_UPVOTES: post.score,
 			  			POST_TITLE: post.title,
 			  			SUBREDDIT_NAME: post.subreddit.display_name,
 			  			USER_NAME: comment.author.name,
+			  			USER_EMAIL_VERIFIED: user_anon_score_obj.email_is_verified,
 			  	//		USER_ACTIVITY:
-			  	//		USER_ANON_SCORE:
+			  			USER_ANON_SCORE: user_anon_score_obj.score,
 			  			COMMENT_ID: comment.name,
 			  			COMMENT_CREATED_UTC: comment.created_utc,
 			  			COMMENT_TEXT: comment_text,
+			  			COMMENT_UPVOTES: comment.score,
 			  			COMMENT_NEG_SCORE: sentiment_scores.neg,
 			  			COMMENT_NEU_SCORE: sentiment_scores.neg,
 			  			COMMENT_POS_SCORE: sentiment_scores.pos,
 			  			COMMENT_COMP_SCORE: sentiment_scores.compound,
+			  			COMMENT_POS_SCORE_WEIGHTED: weighted_score(sentiment_scores.pos, comment.score, post.score + post.num_comments)
 			  		}
 
 			  		data.push(results)

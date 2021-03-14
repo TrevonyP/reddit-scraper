@@ -14,7 +14,7 @@ exports.array = [
 	"Assistance",
 	"ADHD",
 	"Advice",
-	"needadvice",
+//	"needadvice",
 	"alcoholicsanonymous",
 	"alcoholism",
 	"Anger",

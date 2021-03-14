@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Data scraper for reddit comments and user information. PSYC 26010 final project.",
   "main": "index.js",
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -23,6 +22,7 @@
     "fs": "^0.0.1-security",
     "jsonexport": "^3.2.0",
     "log-timestamp": "^0.3.0",
+    "moment": "^2.29.1",
     "snoowrap": "^1.22.0",
     "vader-sentiment": "^1.1.3"
   }
